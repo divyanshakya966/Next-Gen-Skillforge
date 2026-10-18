@@ -21,14 +21,17 @@ These live in GitHub **Settings** (not in the repo files):
 
 | Setting | Where | Value |
 |---------|-------|-------|
-| Branch protection | Settings → Branches → `main` | Require PR before merge; require status checks: `Lint`, `Type Check`, `Tests`, `Build`, `PR structure`; require branch to be up to date |
+| Branch protection | Settings → Branches → `main` | Require PR before merging; require status checks: `Lint`, `Type Check`, `Tests`, `Build`, `PR structure`; require branch to be up to date; require Code owners review; dismiss stale reviews; require linear history; do not allow bypassing; no force pushes/deletions |
 | CODEOWNERS reviews | Settings → Code review | Require review from Code owners |
 | Fork workflow approval | Settings → Actions → General | Require approval for first-time contributors (stops unknown/fork PRs from burning CI minutes until reviewed) |
+| Workflow token perms | Settings → Actions → General | Default `GITHUB_TOKEN` permissions: **Read** (workflows request write only where needed) |
 | Secret scanning | Settings → Code and analysis | Enable secret scanning + **Push protection** (free for public repos; blocks pushed credentials) |
+| Dependabot security updates | Settings → Code and analysis | Enable (auto-opens PRs for vulnerable deps; on by default for public repos with dependency graph) |
+| Dependency graph | Settings → Code and analysis | Enable (required by the Dependency Review CI workflow) |
+| Merge settings | Settings → General | Squash merges only; delete branch on merge; no merge commits/rebase merges |
 | Interaction limits | Settings → General → Moderation | Keep off normally; switch on during spam waves (limits activity to existing users for 24h/week) |
 | Discussions / Issues | Settings → General | Issues enabled; Discussions optional |
 | Labels | run `./scripts/setup-labels.sh` | Creates the full label taxonomy used by templates, labeler, and stale workflow |
-| Auto-delete branches | Settings → General | Enable (keeps fork branches tidy) |
 
 > Run `./scripts/setup-labels.sh` **before** merging any PR — the spam moderator and stale workflows reference labels (`spam`, `stale`, `NSOC'26 (WINTER EDITION)`) that must exist.
 
@@ -171,6 +174,6 @@ Contributor-facing rebase instructions live in [CONTRIBUTING.md](CONTRIBUTING.md
 
 ## Dependency upkeep
 
-- **Dependabot** opens grouped PRs weekly (npm) and for GitHub Actions. Review with the Dependency Review workflow output; merge green bumps promptly.
+- **Dependabot** opens grouped PRs weekly (npm) and for GitHub Actions, **minor/patch only** — major bumps are ignored in `.github/dependabot.yml` and must be done by a deliberate maintainer PR (majors often change config schemas, e.g. `labeler` v5→v6, `next` 15→16). Security update PRs are unaffected by that ignore rule. Review with the Dependency Review workflow output; merge green bumps promptly.
 - Once a month: run `npm audit` locally and skim release notes of `next`, `hono`, and `wrangler` for breaking changes.
 - New dependencies in a contributor PR need justification in the PR discussion — prefer the standard library or existing packages (`clsx`, `tailwind-merge`, `lucide-react` already exist).

@@ -25,6 +25,7 @@ jobs:
             const assoc = pr.author_association;
             const isMaintainer = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(assoc);
             const isBot = pr.user.type === 'Bot';
+            const isDependabot = pr.user.login === 'dependabot[bot]';
             const body = pr.body || '';
             const errors = [];
             const notes = [];
@@ -64,11 +65,12 @@ jobs:
               per_page: 100,
             });
 
-            // 4. Workflow files: only maintainers may change them (prevents CI poisoning)
+            // 4. Workflow files: only maintainers (or Dependabot, which bumps action
+            // versions) may change them — prevents CI poisoning by outside contributors.
             const workflowFiles = files
               .map(f => f.filename)
               .filter(fn => fn.startsWith('.github/workflows/') || fn === '.github/dependabot.yml');
-            if (workflowFiles.length > 0 && !isMaintainer) {
+            if (workflowFiles.length > 0 && !isMaintainer && !isDependabot) {
               errors.push(`**Workflow changes require maintainer status.** External contributors: propose CI changes in an issue first (${workflowFiles.join(', ')}).`);
             }
 
@@ -86,8 +88,12 @@ jobs:
               errors.push(`**Secret-looking files must not be committed:** ${secretFiles.join(', ')}. Remove them from the PR (see SECURITY.md).`);
             }
 
-            // 6. Size guard: very large diffs need an explicit justification marker
-            const changedLines = files.reduce((n, f) => n + f.additions + f.deletions, 0);
+            // 6. Size guard: very large diffs need an explicit justification marker.
+            // Lockfiles are excluded — their diffs are machine-generated and huge by nature.
+            const lockfileRe = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|npm-shrinkwrap\.json|bun\.lockb)$/;
+            const changedLines = files
+              .filter(f => !lockfileRe.test(f.filename))
+              .reduce((n, f) => n + f.additions + f.deletions, 0);
             if (changedLines > 4000 && !body.includes('large-pr-ok')) {
               errors.push(`**PR too large** (${changedLines.toLocaleString()} changed lines; limit 4,000). Split it into smaller PRs, or add \`large-pr-ok\` to the description with a justification if it is a justified rewrite.`);
             }

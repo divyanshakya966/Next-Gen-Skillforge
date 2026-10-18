@@ -5,6 +5,12 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    # Majors (e.g. next 15→16, react 18→19) are breaking — bump them deliberately
+    # as a maintainer PR. Per GitHub docs this only affects version updates:
+    # security update PRs are unaffected by ignore.update-types.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
     groups:
       production-dependencies:
         dependency-type: "production"
@@ -16,3 +22,8 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 3
+    # Action majors can change workflow config schemas (e.g. labeler v5→v6) —
+    # bump those in a reviewed PR, not auto.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
