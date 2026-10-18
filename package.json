@@ -19,7 +19,7 @@
     "axios": "^1.14.0",
     "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
-    "framer-motion": "^11.3.31",
+    "framer-motion": "^14.2.0",
     "hono": "^4.13.13",
     "iron-session": "^8.0.4",
     "lucide-react": "^0.441.0",
