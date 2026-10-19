@@ -50,7 +50,7 @@ export function Input({
           {...props}
         />
         {rightAction && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2">
+          <span className="absolute right-1 top-1/2 -translate-y-1/2"> 
             {rightAction}
           </span>
         )}

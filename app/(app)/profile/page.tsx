@@ -321,17 +321,19 @@ export default function ProfilePage() {
                             error={error}
                             disabled={uploading}
                             className="pr-24 pl-9"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => resumeFileInputRef.current?.click()}
-                            disabled={uploading}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none border-accent/40 bg-accent/10 text-accent"
-                            aria-label="Import resume file"
-                          >
-                            <Upload className="h-3.5 w-3.5" />
-                            {uploading ? 'Importing...' : 'Import'}
-                          </button>
+                            rightAction={
+                              <button
+                                type="button"
+                                onClick={() => resumeFileInputRef.current?.click()}
+                                disabled={uploading}
+                                className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none border-accent/40 bg-accent/10 text-accent" //og
+                                aria-label="Import resume file"
+                              >
+                                <Upload className="h-3.5 w-3.5" />
+                                {uploading ? 'Importing...' : 'Import'}
+                              </button>
+                            }
+                            />
                           <input
                             ref={resumeFileInputRef}
                             type="file"
