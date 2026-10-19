@@ -36,7 +36,9 @@ app.post('/', async (c) => {
       createdAt: new Date().toISOString(),
     };
 
+    const history = session.analysisHistory ?? [];
     session.analysis = analysis;
+    session.analysisHistory = [analysis, ...history].slice(0, 10);
     const { cookieValue } = await persistSession(c.env, session, c.get('userId'));
 
     return c.json(

@@ -70,3 +70,14 @@ export interface UserProfile {
   aiSummary: AISummary;
   learningPath: LearningPathItem[];
 }
+
+export interface HistorySummaryItem {
+  index: number;
+  signature: string;
+  createdAt: string;
+  headline?: string;
+  focus?: string;
+  topSkills?: string[];
+  roleTitle?: string;
+}
+

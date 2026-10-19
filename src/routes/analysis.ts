@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { makeSessionCookie, type Env } from '../session';
 import { persistSession } from '../store';
 import { linkSignature, sanitizeAnalysis } from '../validate';
-import type { SocialLinks, DashboardSessionData } from '../types';
+import type { SocialLinks, DashboardSessionData, StoredAnalysis } from '../types';
 
 const app = new Hono<{
   Bindings: Env;
@@ -48,7 +48,10 @@ app.post('/', async (c) => {
   }
 
   const session = c.get('session');
-  session.analysis = { ...analysis, createdAt: new Date().toISOString() };
+  const stored: StoredAnalysis = { ...analysis, createdAt: new Date().toISOString() };
+  session.analysis = stored;
+  const history = session.analysisHistory ?? [];
+  session.analysisHistory = [stored, ...history].slice(0, 10);
   session.preferences = {
     ...(session.preferences ?? {}),
     links: (analysis.profile as { links?: SocialLinks }).links,

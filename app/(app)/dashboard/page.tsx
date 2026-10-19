@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useToast } from '@/components/ui/toast';
-import { apiGet, apiDelete } from '@/lib/api-client';
-import type { UserProfile } from '@/lib/types';
+import { apiGet, apiDelete, apiPost } from '@/lib/api-client';
+import type { UserProfile, HistorySummaryItem } from '@/lib/types';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -21,13 +21,40 @@ import {
   ArrowRight,
   Sparkles,
   BookOpen,
+  History,
+  Clock,
+  ExternalLink,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+
+function formatRelativeTime(dateString?: string): string {
+  if (!dateString) return 'recently';
+  const timestamp = new Date(dateString).getTime();
+  if (isNaN(timestamp)) return 'recently';
+
+  const now = Date.now();
+  const diffSec = Math.max(0, Math.floor((now - timestamp) / 1000));
+
+  if (diffSec < 60) return 'just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin} ${diffMin === 1 ? 'minute' : 'minutes'} ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  if (diffHours < 24) return `${diffHours} ${diffHours === 1 ? 'hour' : 'hours'} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `${diffDays} ${diffDays === 1 ? 'day' : 'days'} ago`;
+  const diffMonths = Math.floor(diffDays / 30);
+  return `${diffMonths} ${diffMonths === 1 ? 'month' : 'months'} ago`;
+}
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
+  const [historyItems, setHistoryItems] = useState<HistorySummaryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [restoringIndex, setRestoringIndex] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [uiTheme, setUiTheme] = useState<'light' | 'dark'>('light');
 
@@ -42,7 +69,11 @@ export default function DashboardPage() {
   }, []);
 
   const fetchSession = useCallback(async () => {
-    const analysisResp = await apiGet('/api/session/analysis');
+    const [analysisResp, historyResp] = await Promise.all([
+      apiGet('/api/session/analysis').catch(() => null),
+      apiGet('/api/session/history').catch(() => null),
+    ]);
+
     const analysis = (analysisResp as {
       analysis?: { profile?: UserProfile } | null;
       stale?: boolean;
@@ -53,7 +84,34 @@ export default function DashboardPage() {
     } else {
       setSavedProfile(null);
     }
+
+    const historyData = (historyResp as { history?: HistorySummaryItem[] })?.history;
+    if (Array.isArray(historyData)) {
+      setHistoryItems(historyData);
+    } else {
+      setHistoryItems([]);
+    }
   }, []);
+
+  const handleRestoreAnalysis = async (index: number) => {
+    setRestoringIndex(index);
+    try {
+      await apiPost('/api/session/history/restore', { index });
+      toast({
+        title: 'Analysis restored',
+        description: 'Switched to selected past analysis. Redirecting...',
+        variant: 'success',
+      });
+      router.push('/analysis');
+    } catch {
+      toast({
+        title: 'Restore failed',
+        description: 'Unable to restore this analysis entry.',
+        variant: 'destructive',
+      });
+      setRestoringIndex(null);
+    }
+  };
 
   useEffect(() => {
     fetchSession()
@@ -361,7 +419,7 @@ export default function DashboardPage() {
       )}
 
       {!hasAnalysis && (
-        <div className="rounded-xl border border-dashed border-border bg-background p-12 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-background p-12 text-center mb-8">
           <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-secondary/50 mb-4">
             <BookOpen className="h-8 w-8 text-muted-foreground" />
           </div>
@@ -378,6 +436,101 @@ export default function DashboardPage() {
           </Link>
         </div>
       )}
+
+      {/* Analysis History Section */}
+      <div className="mt-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <div className="flex items-center gap-2">
+              <History className="h-5 w-5 text-primary" />
+              <div>
+                <h2 className="text-lg font-bold">Analysis History</h2>
+                <p className="text-xs text-muted-foreground">
+                  Browse or restore up to 10 past analyses from your session
+                </p>
+              </div>
+            </div>
+            {historyItems.length > 0 && (
+              <Badge variant="outline" className="text-xs">
+                {historyItems.length} {historyItems.length === 1 ? 'saved run' : 'saved runs'}
+              </Badge>
+            )}
+          </CardHeader>
+          <CardContent className="pt-2">
+            {historyItems.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                <Clock className="mx-auto h-8 w-8 mb-2 opacity-40" />
+                <p>No previous analysis history saved yet.</p>
+                <p className="text-xs mt-1">Past runs will appear here automatically when you analyze your profile.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {historyItems.map((item) => (
+                  <div
+                    key={`${item.index}-${item.createdAt}`}
+                    className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-muted/30 px-2 rounded-md transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm text-foreground">
+                          {item.roleTitle || item.focus || `Analysis #${item.index + 1}`}
+                        </span>
+                        {item.index === 0 && (
+                          <Badge variant="default" className="text-[10px] px-1.5 py-0.5">
+                            Latest
+                          </Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-3 w-3 inline" />
+                          {formatRelativeTime(item.createdAt)}
+                        </span>
+                      </div>
+                      {item.headline && (
+                        <p className="text-xs text-muted-foreground line-clamp-1 max-w-xl">
+                          {item.headline}
+                        </p>
+                      )}
+                      {item.topSkills && item.topSkills.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {item.topSkills.map((skill) => (
+                            <span
+                              key={skill}
+                              className="inline-flex items-center rounded bg-secondary px-1.5 py-0.5 text-[10px] text-secondary-foreground"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRestoreAnalysis(item.index)}
+                        disabled={restoringIndex !== null}
+                        className="text-xs flex items-center gap-1.5"
+                      >
+                        {restoringIndex === item.index ? (
+                          <>
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                            Restoring...
+                          </>
+                        ) : (
+                          <>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                            View
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

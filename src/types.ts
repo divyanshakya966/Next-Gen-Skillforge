@@ -20,9 +20,20 @@ export interface StoredAnalysis {
   createdAt?: string;
 }
 
+export interface HistorySummaryItem {
+  index: number;
+  signature: string;
+  createdAt: string;
+  headline?: string;
+  focus?: string;
+  topSkills?: string[];
+  roleTitle?: string;
+}
+
 export interface DashboardSessionData {
   preferences?: DashboardPreferences;
   analysis?: StoredAnalysis;
+  analysisHistory?: StoredAnalysis[];
   resumeText?: string;
   resumeFileName?: string;
 }

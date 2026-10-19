@@ -9,6 +9,7 @@ import analysisRoute from './routes/analysis';
 import analyzeRoute from './routes/analyze';
 import resumeRoute from './routes/resume';
 import reportRoute from './routes/report';
+import historyRoute from './routes/history';
 
 interface AssetBinding {
   fetch(request: Request): Promise<Response>;
@@ -40,6 +41,7 @@ app.use('*', async (c, next) => {
 
 app.route('/api/session/preferences', preferencesRoute);
 app.route('/api/session/analysis', analysisRoute);
+app.route('/api/session/history', historyRoute);
 app.route('/api/analyze', analyzeRoute);
 app.route('/api/resume/import', resumeRoute);
 app.route('/api/report/download', reportRoute);
