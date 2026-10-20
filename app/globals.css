@@ -207,7 +207,10 @@
     a.bg-primary:hover {
     color: hsl(var(--primary-foreground));
   }
-  a.bg-accent:hover {
+  html:not([data-theme='dark']) a.bg-accent:hover {
+    color: hsl(var(--foreground));
+  }
+  html[data-theme='dark'] a.bg-accent:hover {
     color: hsl(var(--accent-foreground));
   }
 }
