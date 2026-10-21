@@ -30,6 +30,8 @@ export default function DashboardPage() {
   const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [uiTheme, setUiTheme] = useState<'light' | 'dark'>('light');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     const readTheme = () => {
@@ -81,10 +83,18 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDeleteAnalysis = async () => {
+  const handleCancelDelete = () => {
+    if (deleting) return;
+    setConfirmingDelete(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
     try {
       await apiDelete('/api/session/analysis');
       setSavedProfile(null);
+      setConfirmingDelete(false);
       toast({
         title: 'Analysis cleared',
         variant: 'success',
@@ -94,6 +104,8 @@ export default function DashboardPage() {
         title: 'Clear failed',
         variant: 'destructive',
       });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -288,15 +300,48 @@ export default function DashboardPage() {
               </Badge>
             </div>
             {hasAnalysis && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDeleteAnalysis}
-                className="w-full"
-              >
-                <AlertCircle className="h-4 w-4 mr-2" />
-                Clear Analysis
-              </Button>
+              !confirmingDelete ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setConfirmingDelete(true)}
+                  className="w-full"
+                >
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  Clear Analysis
+                </Button>
+              ) : (
+                <div
+                  role="group"
+                  aria-labelledby="clear-analysis-confirm-label"
+                  className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-3"
+                >
+                  <p id="clear-analysis-confirm-label" className="text-xs text-muted-foreground font-medium">
+                    Are you sure? This will delete your saved analysis.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleConfirmDelete}
+                      isLoading={deleting}
+                      disabled={deleting}
+                      className="flex-1"
+                    >
+                      Yes, Clear
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelDelete}
+                      disabled={deleting}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )
             )}
           </CardContent>
         </Card>
