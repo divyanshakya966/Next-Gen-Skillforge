@@ -192,24 +192,96 @@ export default function ProfilePage() {
   };
 
   const handleResumeFile = async (file: File) => {
+    if (uploading) {
+      return;
+    }
+
+    const fileNameLower = file.name.toLowerCase();
+
+    if (!fileNameLower.endsWith('.txt') && !fileNameLower.endsWith('.pdf')) {
+      toast({
+        title: 'Unsupported file type',
+        description: 'Only .txt and .pdf files are supported.',
+        variant: 'destructive',
+      });
+      setUploading(false);
+      if (resumeFileInputRef.current) {
+        resumeFileInputRef.current.value = '';
+      }
+      return;
+    }
+
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('resume', file);
+      if (fileNameLower.endsWith('.txt')) {
+        const formData = new FormData();
+        formData.append('resume', file);
 
-      const response = (await apiPostForm('/api/resume/import', formData)) as {
-        fileName?: string;
-        resumeText?: string;
-      };
+        const response = (await apiPostForm('/api/resume/import', formData)) as {
+          fileName?: string;
+          resumeText?: string;
+        };
 
-      setResumeFileName(response.fileName || file.name);
-      toast({
-        title: 'Resume imported',
-        description: response.fileName ? `Imported ${response.fileName}` : 'Resume uploaded.',
-        variant: 'success',
-      });
+        setResumeFileName(response.fileName || file.name);
+        toast({
+          title: 'Resume imported',
+          description: response.fileName ? `Imported ${response.fileName}` : 'Resume uploaded.',
+          variant: 'success',
+        });
+      } else {
+        const pdfjsDist = await import('pdfjs-dist');
+        const pdfjsLib = (pdfjsDist as any).pdfjsLib;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+
+        let extractedText = '';
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item: { str: string }) => item.str)
+            .join(' ');
+          extractedText += pageText + '\n';
+        }
+
+        pdf.destroy();
+
+        const cleanedText = extractedText.replace(/\s+/g, ' ').trim();
+        if (!cleanedText) {
+          toast({
+            title: 'No extractable text',
+            description:
+              'The PDF contains no extractable text. It may be scanned or image-only, and needs OCR.',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const textFile = new File([cleanedText], 'resume.txt', {
+          type: 'text/plain',
+        });
+
+        const formData = new FormData();
+        formData.append('resume', textFile);
+
+        const response = (await apiPostForm('/api/resume/import', formData)) as {
+          fileName?: string;
+          resumeText?: string;
+        };
+
+        setResumeFileName(response.fileName || 'resume.txt');
+        toast({
+          title: 'Resume imported',
+          description: response.fileName ? `Imported ${response.fileName}` : 'Resume uploaded.',
+          variant: 'success',
+        });
+      }
     } catch (error: any) {
-      const message = error?.message || 'Failed to import resume.';
+      const message =
+        error?.message || 'Failed to import resume.';
       toast({
         title: 'Import failed',
         description: message,
@@ -337,7 +409,7 @@ export default function ProfilePage() {
                           <input
                             ref={resumeFileInputRef}
                             type="file"
-                            accept=".txt,text/plain"
+                            accept=".txt, text/plain, application/pdf"
                             className="hidden"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
@@ -380,8 +452,8 @@ export default function ProfilePage() {
               )}
 
               <p className="text-xs text-muted-foreground">
-                Resume import accepts plain-text (.txt) files up to 8MB. PDF/DOCX parsing is
-                not supported on this platform.
+                Upload a TXT or PDF resume. PDF text is extracted securely in your browser.
+                Scanned PDFs and DOCX files are not supported.
               </p>
 
               <div className="flex items-center justify-between pt-4">
