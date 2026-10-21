@@ -31,6 +31,24 @@ export function getClientIdentifier(c: Context<{
   return 'anonymous';
 }
 
+/**
+ * Approximate rate limiting using Cloudflare Workers KV.
+ *
+ * NOTE ON CONCURRENCY & EVENTUAL CONSISTENCY:
+ * Cloudflare Workers KV is an eventually consistent distributed key-value store and does not
+ * provide atomic read-modify-write (e.g. INCR or compare-and-swap) primitives. Under concurrent
+ * requests arriving simultaneously across edge locations, race conditions may allow a temporary
+ * burst beyond RATE_LIMIT_MAX_REQUESTS. This implementation provides best-effort / approximate
+ * rate limiting to mitigate abusive traffic without introducing stateful infrastructure
+ * (such as Cloudflare Durable Objects with SQLite migrations or external Redis instances), which
+ * would require paid plan subscriptions and database migration architecture beyond the scope of
+ * this repository's deployment configuration.
+ *
+ * NOTE ON FAIL-OPEN POLICY:
+ * If KV reads or writes throw an error (or if the KV binding is unavailable), the rate limiter
+ * fails open (allowed: true) so that infrastructure-level KV disruptions do not block legitimate
+ * user analysis requests.
+ */
 export async function checkRateLimit(
   kv: Env['SESSION_KV'],
   identifier: string,

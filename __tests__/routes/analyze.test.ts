@@ -249,6 +249,29 @@ describe('checkRateLimit', () => {
     expect(res.allowed).toBe(true);
     expect(res.count).toBe(0);
   });
+
+  it('handles concurrent requests gracefully and demonstrates eventual consistency behavior', async () => {
+    const id = 'concurrent-client';
+    const now = 1000000;
+
+    // Simulate 5 simultaneous requests arriving concurrently
+    const results = await Promise.all([
+      checkRateLimit(mockKV, id, now),
+      checkRateLimit(mockKV, id, now),
+      checkRateLimit(mockKV, id, now),
+      checkRateLimit(mockKV, id, now),
+      checkRateLimit(mockKV, id, now),
+    ]);
+
+    expect(results).toHaveLength(5);
+    for (const res of results) {
+      expect(res.allowed).toBe(true);
+    }
+
+    // Subsequent sequential request reads the persisted KV state
+    const nextRes = await checkRateLimit(mockKV, id, now + 1000);
+    expect(nextRes.allowed).toBe(true);
+  });
 });
 
 describe('POST /api/analyze route integration', () => {
@@ -374,5 +397,18 @@ describe('POST /api/analyze route integration', () => {
       mockEnv,
     );
     expect(resOtherIp.status).toBe(200);
+  });
+
+  it('handles concurrent requests to POST /api/analyze gracefully without 500 errors', async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        testApp.request('/api/analyze', { method: 'POST' }, mockEnv),
+      ),
+    );
+
+    expect(responses).toHaveLength(5);
+    for (const res of responses) {
+      expect([200, 429]).toContain(res.status);
+    }
   });
 });
