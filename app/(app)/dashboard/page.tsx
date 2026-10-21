@@ -34,9 +34,16 @@ export default function DashboardPage() {
   const [deleting, setDeleting] = useState(false);
 
   const fetchSeqRef = useRef(0);
+  const savedProfileRef = useRef<UserProfile | null>(null);
   const clearButtonContainerRef = useRef<HTMLDivElement | null>(null);
   const confirmGroupRef = useRef<HTMLDivElement | null>(null);
+  const refreshButtonContainerRef = useRef<HTMLDivElement | null>(null);
   const shouldRestoreFocusRef = useRef(false);
+  const shouldFocusRefreshRef = useRef(false);
+
+  useEffect(() => {
+    savedProfileRef.current = savedProfile;
+  }, [savedProfile]);
 
   useEffect(() => {
     const readTheme = () => {
@@ -54,6 +61,9 @@ export default function DashboardPage() {
     } else if (shouldRestoreFocusRef.current) {
       clearButtonContainerRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
       shouldRestoreFocusRef.current = false;
+    } else if (shouldFocusRefreshRef.current) {
+      refreshButtonContainerRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+      shouldFocusRefreshRef.current = false;
     }
   }, [confirmingDelete]);
 
@@ -67,11 +77,15 @@ export default function DashboardPage() {
       stale?: boolean;
     })?.analysis;
 
-    if (analysis?.profile) {
-      setSavedProfile(analysis.profile);
-    } else {
-      setSavedProfile(null);
+    const nextProfile = analysis?.profile ?? null;
+    const prevProfile = savedProfileRef.current;
+
+    if (!nextProfile || (prevProfile && JSON.stringify(prevProfile) !== JSON.stringify(nextProfile))) {
+      setConfirmingDelete(false);
     }
+
+    savedProfileRef.current = nextProfile;
+    setSavedProfile(nextProfile);
     return true;
   }, []);
 
@@ -114,7 +128,10 @@ export default function DashboardPage() {
     try {
       await apiDelete('/api/session/analysis');
       fetchSeqRef.current += 1;
+      savedProfileRef.current = null;
       setSavedProfile(null);
+      shouldFocusRefreshRef.current = true;
+      setDeleting(false);
       setConfirmingDelete(false);
       shouldRestoreFocusRef.current = false;
       toast({
@@ -122,12 +139,11 @@ export default function DashboardPage() {
         variant: 'success',
       });
     } catch {
+      setDeleting(false);
       toast({
         title: 'Clear failed',
         variant: 'destructive',
       });
-    } finally {
-      setDeleting(false);
     }
   };
 
@@ -161,15 +177,17 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            onClick={handleRefresh}
-            disabled={refreshing || deleting}
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={refreshing ? 'animate-spin h-4 w-4' : 'h-4 w-4'} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </Button>
+          <div ref={refreshButtonContainerRef} className="inline-flex">
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing || deleting}
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={refreshing ? 'animate-spin h-4 w-4' : 'h-4 w-4'} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </div>
         </div>
       </div>
 
