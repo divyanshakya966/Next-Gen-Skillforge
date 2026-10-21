@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/toast';
 import { apiGet, apiDelete } from '@/lib/api-client';
 import type { UserProfile } from '@/lib/types';
@@ -33,6 +33,11 @@ export default function DashboardPage() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const fetchSeqRef = useRef(0);
+  const clearButtonContainerRef = useRef<HTMLDivElement | null>(null);
+  const confirmGroupRef = useRef<HTMLDivElement | null>(null);
+  const shouldRestoreFocusRef = useRef(false);
+
   useEffect(() => {
     const readTheme = () => {
       setUiTheme(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light');
@@ -43,8 +48,20 @@ export default function DashboardPage() {
     return () => observer.disconnect();
   }, []);
 
-  const fetchSession = useCallback(async () => {
+  useEffect(() => {
+    if (confirmingDelete) {
+      confirmGroupRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    } else if (shouldRestoreFocusRef.current) {
+      clearButtonContainerRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+      shouldRestoreFocusRef.current = false;
+    }
+  }, [confirmingDelete]);
+
+  const fetchSession = useCallback(async (): Promise<boolean> => {
+    const seq = ++fetchSeqRef.current;
     const analysisResp = await apiGet('/api/session/analysis');
+    if (seq !== fetchSeqRef.current) return false;
+
     const analysis = (analysisResp as {
       analysis?: { profile?: UserProfile } | null;
       stale?: boolean;
@@ -55,6 +72,7 @@ export default function DashboardPage() {
     } else {
       setSavedProfile(null);
     }
+    return true;
   }, []);
 
   useEffect(() => {
@@ -66,7 +84,8 @@ export default function DashboardPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchSession();
+      const applied = await fetchSession();
+      if (!applied) return;
       toast({
         title: 'Session refreshed',
         description: 'Your latest data has been loaded.',
@@ -85,6 +104,7 @@ export default function DashboardPage() {
 
   const handleCancelDelete = () => {
     if (deleting) return;
+    shouldRestoreFocusRef.current = true;
     setConfirmingDelete(false);
   };
 
@@ -93,8 +113,10 @@ export default function DashboardPage() {
     setDeleting(true);
     try {
       await apiDelete('/api/session/analysis');
+      fetchSeqRef.current += 1;
       setSavedProfile(null);
       setConfirmingDelete(false);
+      shouldRestoreFocusRef.current = false;
       toast({
         title: 'Analysis cleared',
         variant: 'success',
@@ -141,7 +163,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           <Button
             onClick={handleRefresh}
-            disabled={refreshing}
+            disabled={refreshing || deleting}
             size="sm"
             className="flex items-center gap-2"
           >
@@ -301,19 +323,28 @@ export default function DashboardPage() {
             </div>
             {hasAnalysis && (
               !confirmingDelete ? (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setConfirmingDelete(true)}
-                  className="w-full"
-                >
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  Clear Analysis
-                </Button>
+                <div ref={clearButtonContainerRef}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setConfirmingDelete(true)}
+                    className="w-full"
+                  >
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    Clear Analysis
+                  </Button>
+                </div>
               ) : (
                 <div
+                  ref={confirmGroupRef}
                   role="group"
                   aria-labelledby="clear-analysis-confirm-label"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      handleCancelDelete();
+                    }
+                  }}
                   className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-3"
                 >
                   <p id="clear-analysis-confirm-label" className="text-xs text-muted-foreground font-medium">
