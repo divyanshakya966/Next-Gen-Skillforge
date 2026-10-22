@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useToast } from '@/components/ui/toast';
 import { apiGet, apiDelete } from '@/lib/api-client';
 import type { UserProfile } from '@/lib/types';
@@ -30,6 +30,20 @@ export default function DashboardPage() {
   const [savedProfile, setSavedProfile] = useState<UserProfile | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [uiTheme, setUiTheme] = useState<'light' | 'dark'>('light');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchSeqRef = useRef(0);
+  const savedProfileRef = useRef<UserProfile | null>(null);
+  const clearButtonContainerRef = useRef<HTMLDivElement | null>(null);
+  const confirmGroupRef = useRef<HTMLDivElement | null>(null);
+  const refreshButtonContainerRef = useRef<HTMLDivElement | null>(null);
+  const shouldRestoreFocusRef = useRef(false);
+  const shouldFocusRefreshRef = useRef(false);
+
+  useEffect(() => {
+    savedProfileRef.current = savedProfile;
+  }, [savedProfile]);
 
   useEffect(() => {
     const readTheme = () => {
@@ -41,18 +55,38 @@ export default function DashboardPage() {
     return () => observer.disconnect();
   }, []);
 
-  const fetchSession = useCallback(async () => {
+  useEffect(() => {
+    if (confirmingDelete) {
+      confirmGroupRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+    } else if (shouldRestoreFocusRef.current) {
+      clearButtonContainerRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+      shouldRestoreFocusRef.current = false;
+    } else if (shouldFocusRefreshRef.current) {
+      refreshButtonContainerRef.current?.querySelector<HTMLButtonElement>('button')?.focus();
+      shouldFocusRefreshRef.current = false;
+    }
+  }, [confirmingDelete]);
+
+  const fetchSession = useCallback(async (): Promise<boolean> => {
+    const seq = ++fetchSeqRef.current;
     const analysisResp = await apiGet('/api/session/analysis');
+    if (seq !== fetchSeqRef.current) return false;
+
     const analysis = (analysisResp as {
       analysis?: { profile?: UserProfile } | null;
       stale?: boolean;
     })?.analysis;
 
-    if (analysis?.profile) {
-      setSavedProfile(analysis.profile);
-    } else {
-      setSavedProfile(null);
+    const nextProfile = analysis?.profile ?? null;
+    const prevProfile = savedProfileRef.current;
+
+    if (!nextProfile || (prevProfile && JSON.stringify(prevProfile) !== JSON.stringify(nextProfile))) {
+      setConfirmingDelete(false);
     }
+
+    savedProfileRef.current = nextProfile;
+    setSavedProfile(nextProfile);
+    return true;
   }, []);
 
   useEffect(() => {
@@ -64,7 +98,8 @@ export default function DashboardPage() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchSession();
+      const applied = await fetchSession();
+      if (!applied) return;
       toast({
         title: 'Session refreshed',
         description: 'Your latest data has been loaded.',
@@ -81,15 +116,30 @@ export default function DashboardPage() {
     }
   };
 
-  const handleDeleteAnalysis = async () => {
+  const handleCancelDelete = () => {
+    if (deleting) return;
+    shouldRestoreFocusRef.current = true;
+    setConfirmingDelete(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleting) return;
+    setDeleting(true);
     try {
       await apiDelete('/api/session/analysis');
+      fetchSeqRef.current += 1;
+      savedProfileRef.current = null;
       setSavedProfile(null);
+      shouldFocusRefreshRef.current = true;
+      setDeleting(false);
+      setConfirmingDelete(false);
+      shouldRestoreFocusRef.current = false;
       toast({
         title: 'Analysis cleared',
         variant: 'success',
       });
     } catch {
+      setDeleting(false);
       toast({
         title: 'Clear failed',
         variant: 'destructive',
@@ -127,15 +177,17 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={refreshing ? 'animate-spin h-4 w-4' : 'h-4 w-4'} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </Button>
+          <div ref={refreshButtonContainerRef} className="inline-flex">
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing || deleting}
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={refreshing ? 'animate-spin h-4 w-4' : 'h-4 w-4'} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -288,15 +340,57 @@ export default function DashboardPage() {
               </Badge>
             </div>
             {hasAnalysis && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDeleteAnalysis}
-                className="w-full"
-              >
-                <AlertCircle className="h-4 w-4 mr-2" />
-                Clear Analysis
-              </Button>
+              !confirmingDelete ? (
+                <div ref={clearButtonContainerRef}>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setConfirmingDelete(true)}
+                    className="w-full"
+                  >
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    Clear Analysis
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  ref={confirmGroupRef}
+                  role="group"
+                  aria-labelledby="clear-analysis-confirm-label"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      handleCancelDelete();
+                    }
+                  }}
+                  className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-3"
+                >
+                  <p id="clear-analysis-confirm-label" className="text-xs text-muted-foreground font-medium">
+                    Are you sure? This will delete your saved analysis.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={handleConfirmDelete}
+                      isLoading={deleting}
+                      disabled={deleting}
+                      className="flex-1"
+                    >
+                      Yes, Clear
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelDelete}
+                      disabled={deleting}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )
             )}
           </CardContent>
         </Card>
