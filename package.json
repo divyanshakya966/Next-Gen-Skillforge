@@ -29,7 +29,7 @@
     "postcss-selector-parser": "^6.1.4"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20261006.1",
+    "@cloudflare/workers-types": "^5.20261021.1",
     "@types/node": "^22.20.5",
     "@types/react": "^18",
     "@types/react-dom": "^18",
@@ -40,6 +40,6 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
     "vitest": "^5.0.5",
-    "wrangler": "^4.151.1"
+    "wrangler": "^4.151.3"
   }
 }
