@@ -45,9 +45,11 @@ The frontend calls the API on the same origin using relative paths (`/api/...`),
 - Next.js 15 (App Router, static export)
 - React 18 + TypeScript
 - Tailwind CSS
-- Hono (API on Cloudflare Workers)
+- Framer Motion
+- Recharts
+- Hono + Cloudflare Workers (API + static assets)
 - Vitest (testing)
-- Cloudflare Workers Assets (static frontend), KV (session storage), and D1 (durable storage)
+- Cloudflare Workers KV (session storage)
 
 ## Project Structure
 
@@ -55,16 +57,15 @@ The frontend calls the API on the same origin using relative paths (`/api/...`),
 next-gen-skillforge/
 ├── app/                 # Next.js frontend (App Router, static export)
 │   ├── page.tsx         # Landing page
-│   ├── layout.tsx       # Root layout (theme and toasts)
-│   └── (app)/           # Pages sharing the sidebar layout
-│       ├── layout.tsx   # App shell with sidebar
-│       ├── dashboard/   # Dashboard (stats, quick actions, saved analysis)
-│       ├── profile/     # Profile setup (links, resume upload)
-│       ├── analysis/    # Skill/job analysis (summary and recommendations)
-│       ├── learning/    # Personalized learning path
-│       └── report/      # Downloadable PDF report
+│   ├── layout.tsx       # Root layout (sidebar, theme, toasts)
+│   ├── dashboard/       # Dashboard (stats, quick actions, saved analysis)
+│   ├── profile/         # Profile setup (links, resume upload)
+│   ├── analysis/        # Skill/job analysis (summary, charts, recommendations)
+│   ├── learning/        # Personalized learning path
+│   └── report/          # Downloadable PDF report
 ├── components/          # React components
 │   ├── layout/          # App shell (sidebar navigation)
+│   ├── sections/        # Landing page sections
 │   └── ui/              # UI kit (buttons, cards, toasts, skeletons, ...)
 ├── lib/                 # Shared libraries
 │   ├── api-client.ts    # Fetch-based API client (same-origin /api calls)
@@ -135,11 +136,12 @@ npx wrangler secret put SESSION_SECRET
 npm run build
 npm run dev:worker
 
-# Frontend-only iteration with hot reload (port 3000, no API)
+# Frontend hot reload at http://localhost:3000. In `development` mode only, /api/* is
+# proxied to the Worker, so keep `npm run dev:worker` running in a second terminal.
 npm run dev
 ```
 
-`wrangler dev` serves the static export from `out/` and the Hono API on the same origin, so the whole app works at `http://localhost:8787`. The frontend uses relative `/api/...` paths, so no environment variables are required for local development.
+`wrangler dev` serves the static export from `out/` and the Hono API on the same origin, so the whole app works at `http://localhost:8787`. The frontend uses relative `/api/...` paths, so no environment variables are required for local development. When using `npm run dev` on port 3000, `next.config.mjs` proxies `/api/*` to `http://localhost:8787` (override with `DEV_API_ORIGIN`); this proxy is never enabled in production builds.
 
 ### Available Scripts
 
