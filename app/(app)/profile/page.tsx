@@ -8,6 +8,12 @@ import {
   apiPostForm,
 } from '@/lib/api-client';
 import type { SocialLinks } from '@/lib/types';
+import {
+  extractPdfText,
+  isPdfFile,
+  pdfTextToTxtFile,
+  PdfExtractionError,
+} from '@/lib/pdf-extract';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -86,6 +92,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [links, setLinks] = useState<SocialLinks>({ ...EMPTY_LINKS });
   const [errors, setErrors] = useState<Partial<Record<keyof SocialLinks, string>>>({});
   const [resumeFileName, setResumeFileName] = useState('');
@@ -194,8 +201,19 @@ export default function ProfilePage() {
   const handleResumeFile = async (file: File) => {
     setUploading(true);
     try {
+      let uploadFile = file;
+      if (isPdfFile(file)) {
+        setExtracting(true);
+        try {
+          const text = await extractPdfText(file);
+          uploadFile = pdfTextToTxtFile(text, file.name);
+        } finally {
+          setExtracting(false);
+        }
+      }
+
       const formData = new FormData();
-      formData.append('resume', file);
+      formData.append('resume', uploadFile);
 
       const response = (await apiPostForm('/api/resume/import', formData)) as {
         fileName?: string;
@@ -211,7 +229,7 @@ export default function ProfilePage() {
     } catch (error: any) {
       const message = error?.message || 'Failed to import resume.';
       toast({
-        title: 'Import failed',
+        title: error instanceof PdfExtractionError ? 'PDF import failed' : 'Import failed',
         description: message,
         variant: 'destructive',
       });
@@ -320,7 +338,7 @@ export default function ProfilePage() {
                             leftIcon={field.icon}
                             error={error}
                             disabled={uploading}
-                            className={`pl-9 ${uploading ? 'pr-32' : 'pr-24'}`}
+                            className={`pl-9 ${uploading ? 'pr-40' : 'pr-24'}`}
                             rightAction={
                               <Button
                                 type="button"
@@ -330,14 +348,14 @@ export default function ProfilePage() {
                                 aria-label="Import resume file"
                               >
                                 <Upload className="h-3.5 w-3.5" />
-                                {uploading ? 'Importing...' : 'Import'}
+                                {extracting ? 'Extracting text...' : uploading ? 'Importing...' : 'Import'}
                               </Button>
                             }
                             />
                           <input
                             ref={resumeFileInputRef}
                             type="file"
-                            accept=".txt,text/plain"
+                            accept=".txt,text/plain,.pdf,application/pdf"
                             className="hidden"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
@@ -380,8 +398,8 @@ export default function ProfilePage() {
               )}
 
               <p className="text-xs text-muted-foreground">
-                Resume import accepts plain-text (.txt) files up to 8MB. PDF/DOCX parsing is
-                not supported on this platform.
+                Resume import accepts plain-text (.txt) and PDF files up to 8MB. PDF text is
+                extracted in your browser. DOCX is not supported.
               </p>
 
               <div className="flex items-center justify-between pt-4">
