@@ -27,7 +27,7 @@
   "overrides": {
     "glob": "^10.5.0",
     "postcss": "^8.5.23",
-    "postcss-selector-parser": "^6.1.4"
+    "postcss-selector-parser": "^6.1.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261021.1",
