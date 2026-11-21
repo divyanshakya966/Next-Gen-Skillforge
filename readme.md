@@ -147,7 +147,7 @@ npm run dev
 
 | Script | Description |
 |--------|-------------|
-| `npm run dev` | Start Next.js dev server (frontend only) |
+| `npm run dev` | Start Next.js dev server on port 3000; proxies `/api/*` to the Worker in development, so `npm run dev:worker` must also be running |
 | `npm run dev:worker` | Serve UI + API locally with wrangler (port 8787) |
 | `npm run build` | Build Next.js static export (`out/`) |
 | `npm run build:cf` | Alias of `npm run build` |

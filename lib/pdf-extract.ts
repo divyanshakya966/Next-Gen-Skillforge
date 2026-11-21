@@ -69,7 +69,7 @@ export async function extractPdfText(
       let pageText = '';
       for (const item of content.items) {
         if (typeof item.str !== 'string') continue;
-        pageText += item.str + (item.hasEOL ? '\n' : ' ');
+        pageText += item.str + (item.hasEOL ? '\n' : '');
       }
       pages.push(pageText);
       page.cleanup?.();

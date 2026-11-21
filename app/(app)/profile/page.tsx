@@ -304,7 +304,7 @@ export default function ProfilePage() {
             Connect your professional profiles and resume for analysis.
           </p>
         </div>
-        <Button onClick={handleAnalyze} disabled={!hasAnyLink || saving || analyzing} className="flex items-center gap-2">
+        <Button onClick={handleAnalyze} disabled={!hasAnyLink || saving || analyzing || uploading} className="flex items-center gap-2">
           <Sparkles className={`h-4 w-4 ${analyzing ? 'animate-spin' : ''}`} />
           {analyzing ? 'Analyzing...' : 'Save & Analyze'}
         </Button>

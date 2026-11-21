@@ -36,13 +36,18 @@ describe('isPdfFile', () => {
 describe('extractPdfText', () => {
   it('joins text across pages', async () => {
     const { loader, destroy } = makeLoader([
-      [{ str: 'Jane', hasEOL: false }, { str: 'Doe', hasEOL: true }],
+      [{ str: 'Jane ', hasEOL: false }, { str: 'Doe', hasEOL: true }],
       [{ str: 'Skills: TypeScript' }],
     ]);
     const text = await extractPdfText(pdf, loader);
     expect(text).toContain('Jane Doe');
     expect(text).toContain('Skills: TypeScript');
     expect(destroy).toHaveBeenCalled();
+  });
+
+  it('keeps words split across adjacent text items intact', async () => {
+    const { loader } = makeLoader([[{ str: 'Jo' }, { str: 'hns' }, { str: ' Smith', hasEOL: true }]]);
+    expect(await extractPdfText(pdf, loader)).toBe('Johns Smith');
   });
 
   it('throws an "empty" error when no text is found', async () => {
