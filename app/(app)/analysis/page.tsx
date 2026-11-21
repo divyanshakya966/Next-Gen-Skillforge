@@ -410,8 +410,18 @@ export default function AnalysisPage() {
                   <span className="text-sm font-medium text-foreground">Technical Skills</span>
                   <span className="text-sm font-semibold text-foreground">{avgTechnical}%</span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-background overflow-hidden">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${avgTechnical}%` }} />
+                <div
+                  role="progressbar"
+                  aria-label="Technical Skills average proficiency"
+                  aria-valuenow={avgTechnical}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="h-2 w-full rounded-full bg-background overflow-hidden"
+                >
+                  <div
+                    className="h-full rounded-full bg-primary motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-out"
+                    style={{ width: `${avgTechnical}%` }}
+                  />
                 </div>
               </div>
               <div>
@@ -419,8 +429,18 @@ export default function AnalysisPage() {
                   <span className="text-sm font-medium text-foreground">Soft Skills</span>
                   <span className="text-sm font-semibold text-foreground">{avgSoft}%</span>
                 </div>
-                <div className="h-2 w-full rounded-full bg-background overflow-hidden">
-                  <div className="h-full rounded-full bg-accent" style={{ width: `${avgSoft}%` }} />
+                <div
+                  role="progressbar"
+                  aria-label="Soft Skills average proficiency"
+                  aria-valuenow={avgSoft}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="h-2 w-full rounded-full bg-background overflow-hidden"
+                >
+                  <div
+                    className="h-full rounded-full bg-accent motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-out"
+                    style={{ width: `${avgSoft}%` }}
+                  />
                 </div>
               </div>
             </div>
@@ -463,9 +483,16 @@ export default function AnalysisPage() {
                           <span className="text-sm font-medium">{skill.skill}</span>
                           <span className="text-xs font-semibold">{pct}%</span>
                         </div>
-                        <div className="h-1.5 w-full rounded-full bg-background overflow-hidden">
+                        <div
+                          role="progressbar"
+                          aria-label={`${skill.skill} proficiency`}
+                          aria-valuenow={pct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          className="h-1.5 w-full rounded-full bg-background overflow-hidden"
+                        >
                           <div
-                            className="h-full rounded-full bg-primary transition-all duration-500"
+                            className="h-full rounded-full bg-primary motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-out"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -497,9 +524,16 @@ export default function AnalysisPage() {
                           <span className="text-sm font-medium">{skill.skill}</span>
                           <span className="text-xs font-semibold">{pct}%</span>
                         </div>
-                        <div className="h-1.5 w-full rounded-full bg-background overflow-hidden">
+                        <div
+                          role="progressbar"
+                          aria-label={`${skill.skill} proficiency`}
+                          aria-valuenow={pct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          className="h-1.5 w-full rounded-full bg-background overflow-hidden"
+                        >
                           <div
-                            className="h-full rounded-full bg-accent transition-all duration-500"
+                            className="h-full rounded-full bg-accent motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-out"
                             style={{ width: `${pct}%` }}
                           />
                         </div>

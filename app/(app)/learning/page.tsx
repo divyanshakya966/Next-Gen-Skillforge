@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { SkeletonCard } from '@/components/ui/skeleton';
 import Link from 'next/link';
+import { filterLearningPath, learningPriorityCounts, type PriorityFilter } from '@/lib/learning-priority';
 import {
   BookOpen,
   Play,
@@ -49,6 +50,7 @@ export default function LearningPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
 
   const fetchAnalysis = useCallback(async () => {
     try {
@@ -121,7 +123,9 @@ export default function LearningPage() {
   }
 
   const totalItems = path.length;
-  const highPriority = path.filter((i) => i.priority === 'high').length;
+  const counts = learningPriorityCounts(path);
+  const highPriority = counts.high;
+  const visiblePath = filterLearningPath(path, priorityFilter);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
@@ -166,8 +170,30 @@ export default function LearningPage() {
         </Card>
       </div>
 
-      <div className="space-y-4">
-        {path.map((item) => {
+      <div role="group" aria-label="Filter learning path by priority" className="mb-6 flex flex-wrap gap-2">
+        {(['all', 'high', 'medium', 'low'] as const).map((priority) => (
+          <button
+            key={priority}
+            type="button"
+            aria-pressed={priorityFilter === priority}
+            aria-controls="learning-path-items"
+            onClick={() => setPriorityFilter(priority)}
+            className={`min-h-11 rounded-lg border px-4 py-2 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+              priority === 'all' ? 'border-border bg-secondary text-foreground' : PRIORITY_STYLES[priority].className
+            } ${priorityFilter === priority ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+          >
+            {priority === 'all' ? 'All' : priority[0].toUpperCase() + priority.slice(1)} ({counts[priority]})
+          </button>
+        ))}
+      </div>
+      <p className="sr-only" role="status">Showing {visiblePath.length} of {totalItems} learning topics</p>
+      <div id="learning-path-items" className="space-y-4">
+        {visiblePath.length === 0 && (
+          <Card><CardContent className="p-8 text-center text-muted-foreground">
+            No {priorityFilter}-priority items in this learning path. Choose All to see every topic.
+          </CardContent></Card>
+        )}
+        {visiblePath.map((item) => {
           const config = PRIORITY_STYLES[item.priority] ?? PRIORITY_FALLBACK;
           return (
             <Card key={item.id} className="group">
